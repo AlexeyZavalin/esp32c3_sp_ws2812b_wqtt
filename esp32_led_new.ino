@@ -10,7 +10,7 @@
 
 // ================= НАСТРОЙКИ =================
 #define DATA_PIN        4
-#define MAX_LEDS        3
+#define MAX_LEDS        32
 #define LED_TYPE        WS2812B
 #define COLOR_ORDER     GRB
 #define DNS_PORT        53

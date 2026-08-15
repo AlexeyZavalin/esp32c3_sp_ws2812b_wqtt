@@ -24,7 +24,7 @@
 
 // ================= LED ========================
 CRGB leds[MAX_LEDS];
-uint16_t ledCount = 32;
+uint16_t ledCount = 100;
 
 // ================= DEVICE STATE =================
 uint8_t currentR = 250, currentG = 170, currentB = 20;
@@ -108,9 +108,11 @@ button{padding:15px 30px;border:none;border-radius:5px;background:#4f3cab;color:
   <div class="form-item"><label>MQTT логин</label><input type="text" name="mqtt_user" required maxlength="47"></div>
   <div class="form-item"><label>MQTT пароль</label><input type="password" name="mqtt_pass" required maxlength="47"></div>
   <div class="form-item"><label>MQTT token</label><input type="text" name="mqtt_token" required maxlength="63"></div>
+  <h3>Устройство</h3>
+  <div class="form-item"><label>Количество диодов</label><input type="number" name="led_count" value="100" min="1" max="256" required></div>
   <h3>Комната</h3>
   <div class="form-item"><label>Название комнаты</label><input type="text" name="room_name" value="Комната" required maxlength="31"></div>
-  <div class="form-item"><label>Название устройства</label><input type="text" name="device_name" value="Лампа" required maxlength="31"></div>
+  <div class="form-item"><label>Название устройства</label><input type="text" name="device_name" value="Свет" required maxlength="31"></div>
   <button type="submit">Сохранить</button>
 </form>
 </body>
@@ -179,7 +181,7 @@ void loadConfig() {
   prefs.end();
 
   prefs.begin("device", true);
-  ledCount = prefs.getUInt("leds", 32);
+  ledCount = prefs.getUInt("leds", 100);
   safeCopy(deviceName, sizeof(deviceName), prefs.getString("device_name", "Лампа"));
   safeCopy(roomName, sizeof(roomName), prefs.getString("room_name", "Комната"));
   prefs.end();
@@ -286,6 +288,7 @@ void setupServer() {
     safeCopy(mqttToken, sizeof(mqttToken), server.arg("mqtt_token"));
     safeCopy(deviceName, sizeof(deviceName), server.arg("device_name"));
     safeCopy(roomName, sizeof(roomName), server.arg("room_name"));
+    ledCount = (uint16_t)constrain(server.arg("led_count").toInt(), 1, MAX_LEDS);
 
     char root[13];
     buildTopicRoot(root, sizeof(root));

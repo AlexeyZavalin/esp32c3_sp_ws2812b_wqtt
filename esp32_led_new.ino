@@ -27,7 +27,7 @@
 #define WIFI_RECONNECT_INTERVAL 5000
 #define WIFI_RECONNECT_ATTEMPTS 4
 #define MQTT_RECONNECT_INTERVAL 3000
-#define BTN_PIN 9              // GPIO сенсорной кнопки (TTP223 и т.п.)
+#define BTN_PIN 10              // GPIO сенсорной кнопки (TTP223 и т.п.)
 #define BTN_ACTIVE_HIGH 1      // 1 = HIGH при касании (TTP223), 0 = кнопка к GND
 #define BTN_DEBOUNCE_MS 40
 #define BTN_CLICK_MAX_MS 450   // отпускание быстрее = клик
@@ -273,7 +273,7 @@ void handleButton() {
 
     if (!btnResetDone && held >= RESET_HOLD_TIME) {
       btnResetDone = true;
-      // factoryReset();
+      factoryReset();
       return;
     }
 

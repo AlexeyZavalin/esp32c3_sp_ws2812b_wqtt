@@ -75,6 +75,13 @@ bool apMode = false;
 uint32_t wifiFailTimer = 0;
 uint32_t mqttLastAttempt = 0;
 
+struct WifiNet {
+  char ssid[33];
+  int32_t rssi;
+};
+static WifiNet wifiNets[16];
+static uint8_t wifiNetCount = 0;
+
 bool btnPressed = false;
 uint32_t btnPressTime = 0;
 
@@ -92,15 +99,25 @@ body{background:#1c1638;display:flex;flex-direction:column;align-items:center;pa
 form{display:flex;flex-direction:column;align-items:center;width:100%;max-width:320px}
 label{display:block;margin-bottom:5px}
 .form-item{margin-bottom:18px;width:100%}
-input{padding:8px;border-radius:5px;border:none;width:100%;box-sizing:border-box}
+input,select{padding:8px;border-radius:5px;border:none;width:100%;box-sizing:border-box}
 button{padding:15px 30px;border:none;border-radius:5px;background:#4f3cab;color:#dcdcdc;font-weight:bold;font-size:1.1rem;cursor:pointer;margin-top:12px}
+.row{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.row label{margin:0}
+button.scan{padding:6px 12px;margin:0;font-size:0.8rem}
 </style>
 </head>
 <body>
 <h2>Настройки WiFi и MQTT</h2>
 <form action="/save" method="post">
   <h3>WiFi</h3>
-  <div class="form-item"><label>SSID</label><input type="text" name="ssid" required maxlength="32"></div>
+  <div class="form-item">
+    <div class="row"><label for="ssid">SSID</label><button type="button" class="scan" id="wifiRefresh">Обновить</button></div>
+    <select name="ssid" id="ssid" required>
+%%WIFI_OPTIONS%%
+      <option value="__custom__">Другая сеть...</option>
+    </select>
+  </div>
+  <div class="form-item" id="customWrap" style="display:%%CUSTOM_DISPLAY%%"><label>Имя сети</label><input type="text" name="ssid_custom" id="ssid_custom" maxlength="32"></div>
   <div class="form-item"><label>Пароль</label><input type="password" name="password" maxlength="64"></div>
   <h3>MQTT</h3>
   <div class="form-item"><label>MQTT сервер</label><input type="text" name="mqtt_server" required maxlength="63"></div>
@@ -113,6 +130,43 @@ button{padding:15px 30px;border:none;border-radius:5px;background:#4f3cab;color:
   <div class="form-item"><label>Название устройства</label><input type="text" name="device_name" value="Лампа" required maxlength="31"></div>
   <button type="submit">Сохранить</button>
 </form>
+<script>
+(function(){
+  var sel=document.getElementById('ssid');
+  var wrap=document.getElementById('customWrap');
+  var custom=document.getElementById('ssid_custom');
+  function toggle(){
+    var isCustom=sel.value==='__custom__';
+    wrap.style.display=isCustom?'block':'none';
+    custom.required=isCustom;
+  }
+  function fill(list){
+    sel.innerHTML='';
+    if(list&&list.length){
+      list.forEach(function(n,i){
+        var o=document.createElement('option');
+        o.value=n.ssid;
+        o.textContent=n.ssid+' ('+n.rssi+' dBm)';
+        if(i===0)o.selected=true;
+        sel.appendChild(o);
+      });
+    }
+    var other=document.createElement('option');
+    other.value='__custom__';
+    other.textContent='Другая сеть...';
+    if(!list||!list.length)other.selected=true;
+    sel.appendChild(other);
+    toggle();
+  }
+  sel.addEventListener('change',toggle);
+  toggle();
+  document.getElementById('wifiRefresh').onclick=function(){
+    var btn=this;
+    btn.disabled=true;
+    fetch('/scan').then(function(r){return r.json()}).then(fill).catch(function(){}).then(function(){btn.disabled=false});
+  };
+})();
+</script>
 </body>
 </html>
 )rawliteral";
@@ -134,6 +188,91 @@ static void safeCopy(char* dst, size_t dstSize, const String& src) {
   if (n >= dstSize) n = dstSize - 1;
   memcpy(dst, src.c_str(), n);
   dst[n] = '\0';
+}
+
+static String htmlEscape(const char* s) {
+  String out;
+  if (!s) return out;
+  out.reserve(strlen(s) + 8);
+  for (; *s; s++) {
+    switch (*s) {
+      case '&':  out += F("&amp;"); break;
+      case '<':  out += F("&lt;"); break;
+      case '>':  out += F("&gt;"); break;
+      case '"':  out += F("&quot;"); break;
+      case '\'': out += F("&#39;"); break;
+      default:   out += *s; break;
+    }
+  }
+  return out;
+}
+
+void scanWifiNetworks() {
+  wifiNetCount = 0;
+  int n = WiFi.scanNetworks();
+  if (n <= 0) {
+    WiFi.scanDelete();
+    return;
+  }
+
+  for (int i = 0; i < n; i++) {
+    String ssid = WiFi.SSID(i);
+    if (!ssid.length()) continue;
+    int32_t rssi = WiFi.RSSI(i);
+
+    int dup = -1;
+    for (uint8_t j = 0; j < wifiNetCount; j++) {
+      if (ssid == wifiNets[j].ssid) { dup = j; break; }
+    }
+    if (dup >= 0) {
+      if (rssi > wifiNets[dup].rssi) wifiNets[dup].rssi = rssi;
+      continue;
+    }
+
+    if (wifiNetCount >= 16) {
+      uint8_t weakest = 0;
+      for (uint8_t j = 1; j < wifiNetCount; j++) {
+        if (wifiNets[j].rssi < wifiNets[weakest].rssi) weakest = j;
+      }
+      if (rssi <= wifiNets[weakest].rssi) continue;
+      safeCopy(wifiNets[weakest].ssid, sizeof(wifiNets[weakest].ssid), ssid);
+      wifiNets[weakest].rssi = rssi;
+      continue;
+    }
+
+    safeCopy(wifiNets[wifiNetCount].ssid, sizeof(wifiNets[wifiNetCount].ssid), ssid);
+    wifiNets[wifiNetCount].rssi = rssi;
+    wifiNetCount++;
+  }
+  WiFi.scanDelete();
+
+  for (uint8_t i = 0; i < wifiNetCount; i++) {
+    for (uint8_t j = i + 1; j < wifiNetCount; j++) {
+      if (wifiNets[j].rssi > wifiNets[i].rssi) {
+        WifiNet tmp = wifiNets[i];
+        wifiNets[i] = wifiNets[j];
+        wifiNets[j] = tmp;
+      }
+    }
+  }
+  Serial.printf("WiFi scan: %u nets\n", wifiNetCount);
+}
+
+static String buildWifiOptions() {
+  String out;
+  out.reserve(wifiNetCount * 80);
+  for (uint8_t i = 0; i < wifiNetCount; i++) {
+    out += F("<option value=\"");
+    out += htmlEscape(wifiNets[i].ssid);
+    out += '"';
+    if (i == 0) out += F(" selected");
+    out += '>';
+    out += htmlEscape(wifiNets[i].ssid);
+    out += F(" (");
+    out += wifiNets[i].rssi;
+    out += F(" dBm)</option>");
+  }
+  return out;
 }
 
 static void buildStateTopics() {
@@ -273,11 +412,30 @@ bool connectWiFi() {
 
 void setupServer() {
   server.on("/", HTTP_GET, []() {
-    server.send_P(200, "text/html", SETUP_HTML);
+    String html = FPSTR(SETUP_HTML);
+    html.replace("%%WIFI_OPTIONS%%", buildWifiOptions());
+    html.replace("%%CUSTOM_DISPLAY%%", wifiNetCount ? "none" : "block");
+    server.send(200, "text/html", html);
+  });
+
+  server.on("/scan", HTTP_GET, []() {
+    scanWifiNetworks();
+    StaticJsonDocument<1536> doc;
+    JsonArray arr = doc.to<JsonArray>();
+    for (uint8_t i = 0; i < wifiNetCount; i++) {
+      JsonObject o = arr.createNestedObject();
+      o["ssid"] = wifiNets[i].ssid;
+      o["rssi"] = wifiNets[i].rssi;
+    }
+    String json;
+    serializeJson(doc, json);
+    server.send(200, "application/json", json);
   });
 
   server.on("/save", HTTP_POST, []() {
-    safeCopy(wifiSsid, sizeof(wifiSsid), server.arg("ssid"));
+    String ssidArg = server.arg("ssid");
+    if (ssidArg == "__custom__") ssidArg = server.arg("ssid_custom");
+    safeCopy(wifiSsid, sizeof(wifiSsid), ssidArg);
     safeCopy(wifiPass, sizeof(wifiPass), server.arg("password"));
     safeCopy(mqttServer, sizeof(mqttServer), server.arg("mqtt_server"));
     mqttPort = (uint16_t)server.arg("mqtt_port").toInt();
@@ -332,11 +490,12 @@ void setupServer() {
 
 void startAP() {
   apMode = true;
-  WiFi.mode(WIFI_AP);
+  WiFi.mode(WIFI_AP_STA);
   WiFi.softAP("Lamp-Setup", "12345678");
   dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
-  setupServer();
   showStatus(CRGB::Red);
+  scanWifiNetworks();
+  setupServer();
   Serial.println(F("AP mode: Lamp-Setup"));
 }
 

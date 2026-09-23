@@ -31,10 +31,10 @@ uint8_t currentR = 250, currentG = 170, currentB = 20;
 uint8_t hue = 20, sat = 210;
 uint8_t brightness = 200;
 uint8_t lastBrightness = 200;
-uint8_t effectSpeed = 70;
+uint8_t effectSpeed = 60;
 uint32_t lastFrame = 0;
-uint8_t effect = 4;
-uint8_t nextEffect = 4;
+uint8_t effect = 1;
+uint8_t nextEffect = 1;
 uint8_t effectBlend = 0;
 
 bool enabled = true;

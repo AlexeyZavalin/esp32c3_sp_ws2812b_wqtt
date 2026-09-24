@@ -6,7 +6,6 @@
 #include <FastLED.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
-#include <ArduinoJson.h>
 
 // ================= НАСТРОЙКИ =================
 #define DATA_PIN        4
@@ -87,99 +86,39 @@ uint32_t btnPressTime = 0;
 
 // ================= HTML (во flash) =================
 static const char SETUP_HTML[] PROGMEM = R"rawliteral(
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WiFi и MQTT Setup</title>
+<!DOCTYPE html><html lang="ru"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Setup</title>
 <style>
-html{font-family:Arial;color:#dcdcdc;height:100vh}
-body{background:#1c1638;display:flex;flex-direction:column;align-items:center;padding:40px 16px}
-form{display:flex;flex-direction:column;align-items:center;width:100%;max-width:320px}
-label{display:block;margin-bottom:5px}
-.form-item{margin-bottom:18px;width:100%}
+html{font-family:Arial;color:#dcdcdc}body{background:#1c1638;display:flex;flex-direction:column;align-items:center;padding:40px 16px}
+form{width:100%;max-width:320px}label{display:block;margin-bottom:5px}.form-item{margin-bottom:16px}
 input,select{padding:8px;border-radius:5px;border:none;width:100%;box-sizing:border-box}
-button{padding:15px 30px;border:none;border-radius:5px;background:#4f3cab;color:#dcdcdc;font-weight:bold;font-size:1.1rem;cursor:pointer;margin-top:12px}
-.row{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
-.row label{margin:0}
-button.scan{padding:6px 12px;margin:0;font-size:0.8rem}
-</style>
-</head>
-<body>
+button{padding:15px 30px;border:none;border-radius:5px;background:#4f3cab;color:#dcdcdc;font-weight:bold;font-size:1.1rem;margin-top:12px}
+.row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}.row a{color:#bbb;font-size:.85rem}
+</style></head><body>
 <h2>Настройки WiFi и MQTT</h2>
 <form action="/save" method="post">
-  <h3>WiFi</h3>
-  <div class="form-item">
-    <div class="row"><label for="ssid">SSID</label><button type="button" class="scan" id="wifiRefresh">Обновить</button></div>
-    <select name="ssid" id="ssid" required>
-%%WIFI_OPTIONS%%
-      <option value="__custom__">Другая сеть...</option>
-    </select>
-  </div>
-  <div class="form-item" id="customWrap" style="display:%%CUSTOM_DISPLAY%%"><label>Имя сети</label><input type="text" name="ssid_custom" id="ssid_custom" maxlength="32"></div>
-  <div class="form-item"><label>Пароль</label><input type="password" name="password" maxlength="64"></div>
-  <h3>MQTT</h3>
-  <div class="form-item"><label>MQTT сервер</label><input type="text" name="mqtt_server" required maxlength="63"></div>
-  <div class="form-item"><label>MQTT порт</label><input type="number" name="mqtt_port" value="1883" required></div>
-  <div class="form-item"><label>MQTT логин</label><input type="text" name="mqtt_user" required maxlength="47"></div>
-  <div class="form-item"><label>MQTT пароль</label><input type="password" name="mqtt_pass" required maxlength="47"></div>
-  <div class="form-item"><label>MQTT token</label><input type="text" name="mqtt_token" required maxlength="63"></div>
-  <h3>Комната</h3>
-  <div class="form-item"><label>Название комнаты</label><input type="text" name="room_name" value="Комната" required maxlength="31"></div>
-  <div class="form-item"><label>Название устройства</label><input type="text" name="device_name" value="Лампа" required maxlength="31"></div>
-  <button type="submit">Сохранить</button>
-</form>
-<script>
-(function(){
-  var sel=document.getElementById('ssid');
-  var wrap=document.getElementById('customWrap');
-  var custom=document.getElementById('ssid_custom');
-  function toggle(){
-    var isCustom=sel.value==='__custom__';
-    wrap.style.display=isCustom?'block':'none';
-    custom.required=isCustom;
-  }
-  function fill(list){
-    sel.innerHTML='';
-    if(list&&list.length){
-      list.forEach(function(n,i){
-        var o=document.createElement('option');
-        o.value=n.ssid;
-        o.textContent=n.ssid+' ('+n.rssi+' dBm)';
-        if(i===0)o.selected=true;
-        sel.appendChild(o);
-      });
-    }
-    var other=document.createElement('option');
-    other.value='__custom__';
-    other.textContent='Другая сеть...';
-    if(!list||!list.length)other.selected=true;
-    sel.appendChild(other);
-    toggle();
-  }
-  sel.addEventListener('change',toggle);
-  toggle();
-  document.getElementById('wifiRefresh').onclick=function(){
-    var btn=this;
-    btn.disabled=true;
-    fetch('/scan').then(function(r){return r.json()}).then(fill).catch(function(){}).then(function(){btn.disabled=false});
-  };
-})();
-</script>
-</body>
-</html>
+<h3>WiFi</h3>
+<div class="form-item"><div class="row"><label for="ssid">SSID</label><a href="/rescan">Обновить</a></div>
+<select name="ssid" id="ssid">%%WIFI_OPTIONS%%</select></div>
+<div class="form-item"><label>Или другая сеть</label><input name="ssid_custom" maxlength="32"></div>
+<div class="form-item"><label>Пароль</label><input type="password" name="password" maxlength="64"></div>
+<h3>MQTT</h3>
+<div class="form-item"><label>MQTT сервер</label><input name="mqtt_server" required maxlength="63"></div>
+<div class="form-item"><label>MQTT порт</label><input type="number" name="mqtt_port" value="1883" required></div>
+<div class="form-item"><label>MQTT логин</label><input name="mqtt_user" required maxlength="47"></div>
+<div class="form-item"><label>MQTT пароль</label><input type="password" name="mqtt_pass" required maxlength="47"></div>
+<div class="form-item"><label>MQTT token</label><input name="mqtt_token" required maxlength="63"></div>
+<h3>Комната</h3>
+<div class="form-item"><label>Название комнаты</label><input name="room_name" value="Комната" required maxlength="31"></div>
+<div class="form-item"><label>Название устройства</label><input name="device_name" value="Лампа" required maxlength="31"></div>
+<button type="submit">Сохранить</button>
+</form></body></html>
 )rawliteral";
 
-static const char DONE_HTML[] PROGMEM = R"rawliteral(
-<!DOCTYPE html>
-<html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Готово</title>
-<style>html{font-family:Arial;color:#dcdcdc;height:100vh}body{background:#1c1638;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style>
-</head><body><h3>Сохранено. Перезагрузка...</h3>
-<script>setTimeout(function(){window.close()},1000)</script>
-</body></html>
-)rawliteral";
+static const char DONE_HTML[] PROGMEM =
+  "<html><body style='font-family:Arial;background:#1c1638;color:#dcdcdc;text-align:center;padding:40px'>"
+  "<h3>Сохранено. Перезагрузка...</h3></body></html>";
 
 // ================= HELPERS =================
 static void safeCopy(char* dst, size_t dstSize, const String& src) {
@@ -294,12 +233,39 @@ static void buildTopicRoot(char* root, size_t rootSize) {
 }
 
 bool parseRgb(const char* payload, uint8_t& r, uint8_t& g, uint8_t& b) {
-  int ri, gi, bi;
-  if (sscanf(payload, "%d,%d,%d", &ri, &gi, &bi) != 3) return false;
-  r = constrain(ri, 0, 255);
-  g = constrain(gi, 0, 255);
-  b = constrain(bi, 0, 255);
+  if (!payload) return false;
+  const char* p2 = strchr(payload, ',');
+  if (!p2) return false;
+  const char* p3 = strchr(p2 + 1, ',');
+  if (!p3) return false;
+  r = (uint8_t)constrain(atoi(payload), 0, 255);
+  g = (uint8_t)constrain(atoi(p2 + 1), 0, 255);
+  b = (uint8_t)constrain(atoi(p3 + 1), 0, 255);
   return true;
+}
+
+static void jsonEscapeTo(const char* s, char* dst, size_t dstSize) {
+  if (!dst || dstSize == 0) return;
+  size_t j = 0;
+  if (s) {
+    for (; *s && j + 2 < dstSize; s++) {
+      char c = *s;
+      if (c == '"' || c == '\\') {
+        if (j + 3 >= dstSize) break;
+        dst[j++] = '\\';
+      }
+      if ((uint8_t)c >= 32) dst[j++] = c;
+    }
+  }
+  dst[j] = '\0';
+}
+
+static uint32_t parseDeviceId(const String& response) {
+  int key = response.indexOf("device_id");
+  if (key < 0) return 0;
+  int colon = response.indexOf(':', key);
+  if (colon < 0) return 0;
+  return (uint32_t)response.substring(colon + 1).toInt();
 }
 
 void showStatus(CRGB color) {
@@ -414,27 +380,19 @@ void setupServer() {
   server.on("/", HTTP_GET, []() {
     String html = FPSTR(SETUP_HTML);
     html.replace("%%WIFI_OPTIONS%%", buildWifiOptions());
-    html.replace("%%CUSTOM_DISPLAY%%", wifiNetCount ? "none" : "block");
     server.send(200, "text/html", html);
   });
 
-  server.on("/scan", HTTP_GET, []() {
+  server.on("/rescan", HTTP_GET, []() {
     scanWifiNetworks();
-    StaticJsonDocument<1536> doc;
-    JsonArray arr = doc.to<JsonArray>();
-    for (uint8_t i = 0; i < wifiNetCount; i++) {
-      JsonObject o = arr.createNestedObject();
-      o["ssid"] = wifiNets[i].ssid;
-      o["rssi"] = wifiNets[i].rssi;
-    }
-    String json;
-    serializeJson(doc, json);
-    server.send(200, "application/json", json);
+    server.sendHeader("Location", "/");
+    server.send(302, "text/plain", "");
   });
 
   server.on("/save", HTTP_POST, []() {
-    String ssidArg = server.arg("ssid");
-    if (ssidArg == "__custom__") ssidArg = server.arg("ssid_custom");
+    String ssidArg = server.arg("ssid_custom");
+    ssidArg.trim();
+    if (!ssidArg.length()) ssidArg = server.arg("ssid");
     safeCopy(wifiSsid, sizeof(wifiSsid), ssidArg);
     safeCopy(wifiPass, sizeof(wifiPass), server.arg("password"));
     safeCopy(mqttServer, sizeof(mqttServer), server.arg("mqtt_server"));
@@ -518,45 +476,23 @@ void registerDevice() {
   http.addHeader("Authorization", auth);
   http.setTimeout(8000);
 
-  StaticJsonDocument<1024> body;
-  body["name"] = deviceName;
-  body["type"] = 25;
-  body["room"] = roomName;
-
-  JsonArray onOffArr = body.createNestedArray("on_off");
-  JsonObject oo = onOffArr.createNestedObject();
-  oo["topic_cmd"] = topicPower;
-  oo["topic_state"] = topicPowerState;
-  oo["cmd_on"] = "1";
-  oo["cmd_off"] = "0";
-
-  JsonArray rangeArr = body.createNestedArray("range");
-  JsonObject rg = rangeArr.createNestedObject();
-  rg["type"] = 0;
-  rg["topic_cmd"] = topicBrightness;
-  rg["topic_state"] = topicBrightnessState;
-  rg["max"] = 100.0;
-  rg["min"] = 0.0;
-  rg["precision"] = 1.0;
-  rg["multiplier"] = 1.0;
-
-  JsonArray colorArr = body.createNestedArray("color");
-  JsonObject cl = colorArr.createNestedObject();
-  cl["type"] = 1;
-  cl["topic_cmd"] = topicColor;
-  cl["topic_state"] = topicColorState;
-  cl["options"] = "1500,9000";
-
-  JsonArray modeArr = body.createNestedArray("mode");
-  JsonObject md = modeArr.createNestedObject();
-  md["type"] = 6;
-  md["topic_cmd"] = topicEffect;
-  md["topic_state"] = topicEffectState;
-  md["options"] = "one=1,two=2,three=3,four=4,five=5,six=6,seven=7,eight=8,nine=9";
+  char nameEsc[64], roomEsc[64];
+  jsonEscapeTo(deviceName, nameEsc, sizeof(nameEsc));
+  jsonEscapeTo(roomName, roomEsc, sizeof(roomEsc));
 
   char jsonBuf[900];
-  size_t n = serializeJson(body, jsonBuf, sizeof(jsonBuf));
-  if (n == 0 || n >= sizeof(jsonBuf) - 1) {
+  int n = snprintf(jsonBuf, sizeof(jsonBuf),
+    "{\"name\":\"%s\",\"type\":25,\"room\":\"%s\","
+    "\"on_off\":[{\"topic_cmd\":\"%s\",\"topic_state\":\"%s\",\"cmd_on\":\"1\",\"cmd_off\":\"0\"}],"
+    "\"range\":[{\"type\":0,\"topic_cmd\":\"%s\",\"topic_state\":\"%s\",\"max\":100.0,\"min\":0.0,\"precision\":1.0,\"multiplier\":1.0}],"
+    "\"color\":[{\"type\":1,\"topic_cmd\":\"%s\",\"topic_state\":\"%s\",\"options\":\"1500,9000\"}],"
+    "\"mode\":[{\"type\":6,\"topic_cmd\":\"%s\",\"topic_state\":\"%s\",\"options\":\"one=1,two=2,three=3,four=4,five=5,six=6,seven=7,eight=8,nine=9\"}]}",
+    nameEsc, roomEsc,
+    topicPower, topicPowerState,
+    topicBrightness, topicBrightnessState,
+    topicColor, topicColorState,
+    topicEffect, topicEffectState);
+  if (n <= 0 || n >= (int)sizeof(jsonBuf) - 1) {
     http.end();
     Serial.println(F("JSON too large"));
     return;
@@ -569,13 +505,7 @@ void registerDevice() {
     String response = http.getString();
     http.end();
 
-    StaticJsonDocument<256> doc;
-    if (deserializeJson(doc, response)) {
-      Serial.println(F("JSON parse failed"));
-      return;
-    }
-
-    deviceId = doc["detail"]["device_id"] | 0;
+    deviceId = parseDeviceId(response);
     if (deviceId) {
       prefs.begin("device_id", false);
       prefs.putUInt("deviceId", deviceId);

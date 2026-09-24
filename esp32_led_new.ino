@@ -116,9 +116,12 @@ button{padding:15px 30px;border:none;border-radius:5px;background:#4f3cab;color:
 </form></body></html>
 )rawliteral";
 
-static const char DONE_HTML[] PROGMEM =
-  "<html><body style='font-family:Arial;background:#1c1638;color:#dcdcdc;text-align:center;padding:40px'>"
-  "<h3>Сохранено. Перезагрузка...</h3></body></html>";
+static const char DONE_HTML[] PROGMEM = R"rawliteral(
+  <!DOCTYPE html><html lang="ru"><head>
+  <meta charset="UTF-8"></head>
+  <body style='font-family:Arial;background:#1c1638;color:#dcdcdc;text-align:center;padding:40px'>
+  <h3>Сохранено. Перезагрузка...</h3></body></html>
+)rawliteral";
 
 // ================= HELPERS =================
 static void safeCopy(char* dst, size_t dstSize, const String& src) {

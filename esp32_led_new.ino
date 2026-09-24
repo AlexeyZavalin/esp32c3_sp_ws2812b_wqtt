@@ -657,7 +657,7 @@ bool mqttTryConnect() {
 
 // ================= ЭФФЕКТЫ =================
 void effectColor() {
-  fill_solid(leds, ledCount, CHSV(hue, sat, 255));
+  fill_solid(leds, ledCount, CRGB(currentR, currentG, currentB));
 }
 
 void effectRainbowFlow() {
@@ -688,7 +688,7 @@ void effectPulse() {
   static uint8_t phase = 0;
   phase += 2;
   uint8_t b = map(sin8(phase), 0, 255, 10, 255);
-  fill_solid(leds, ledCount, CHSV(hue, sat, b));
+  fill_solid(leds, ledCount, CRGB(currentR, currentG, currentB).nscale8(b));
 }
 
 void effectNebula() {
@@ -696,9 +696,9 @@ void effectNebula() {
   t++;
   for (uint16_t i = 0; i < ledCount; i++) {
     uint8_t n = inoise8(i * 40, t * 3);
-    uint8_t h = hue + map(n, 0, 255, -30, 30);
-    uint8_t v = map(n, 0, 255, brightness / 5, 255);
-    leds[i] = CHSV(h, sat, v);
+    uint8_t v = map(n, 0, 255, 51, 255);
+    leds[i] = CRGB(currentR, currentG, currentB);
+    leds[i].nscale8(v);
   }
 }
 
